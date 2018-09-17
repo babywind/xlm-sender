@@ -1,0 +1,17 @@
+<component name="libraryTable">
+  <library name="stellar-lib">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/p2p-sender.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/gson-2.8.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/framework.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/ezmorph-1.0.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/commons-logging.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/commons-lang.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/commons-collections.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/commons-beanutils.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/common.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
