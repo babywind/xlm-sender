@@ -1,13 +1,18 @@
-package com.trade.sender;
+package com.trade.sender.scheduler;
 
 import com.quqian.framework.config.ConfigureProvider;
 import com.quqian.framework.resource.ResourceProvider;
 import com.quqian.framework.service.ServiceProvider;
 import com.quqian.framework.service.ServiceSession;
 import com.trade.sender.entity.TradeInfo;
+import com.trade.sender.entity.WithdrawInfo;
 import com.trade.sender.service.XlmManage;
 
-public class Scheduler extends Thread {
+/**
+ * 提币处理线程
+ * @author xy
+ */
+public class WithdrawScheduler extends Thread {
 
 //	protected static int EXPIRES_TOKEN_TIME = 0;
 	private final ResourceProvider resourceProvider;
@@ -15,7 +20,7 @@ public class Scheduler extends Thread {
 	private final ServiceProvider serviceProvider;
 	private transient boolean alive = true;
 
-	public Scheduler(ResourceProvider resourceProvider) {
+	public WithdrawScheduler(ResourceProvider resourceProvider) {
 		this.resourceProvider = resourceProvider;
 		this.configureProvider = resourceProvider.getResource(ConfigureProvider.class);
 		this.serviceProvider = resourceProvider.getResource(ServiceProvider.class);
@@ -25,13 +30,9 @@ public class Scheduler extends Thread {
 	public void run() {
 		while (alive) {
 			try {
-				//转入热钱包
-				xlm_rqb();
+				doWithdraw();
 
-				//转入冷钱包
-				xlm_lqb();
-
-				sleep(1000 * 60 * 5);
+				sleep(1000 * 60);
 			} catch (InterruptedException e) {
 				alive = false;
 				break;
@@ -40,44 +41,24 @@ public class Scheduler extends Thread {
 	}
 
 	/**
-	 * 转入热钱包
+	 *
 	 */
-	private void xlm_rqb() {
+	private void doWithdraw() {
 		try (ServiceSession serviceSession = serviceProvider.createServiceSession()) {
 			XlmManage manage = serviceSession.getService(XlmManage.class);
-			TradeInfo[] ls = manage.getTradeInfos();
-			if (ls != null) {
-				for (TradeInfo l : ls) {
+			WithdrawInfo[] infos = manage.getWithdrawInfos();
+			if (infos != null) {
+				for (WithdrawInfo info : infos) {
 					serviceSession.openTransactions();
 					try {
-						manage.transToHotWallet(l);
+						manage.withdraw(info);
+
 						serviceSession.commit();
 					} catch (Exception e) {
 						e.printStackTrace();
 						serviceSession.rollback();
 					}
 				}
-			}
-		} catch (Throwable e) {
-			e.printStackTrace();
-			resourceProvider.log(e);
-		}
-
-	}
-
-	/**
-	 * 转入冷钱包
-	 */
-	private void xlm_lqb() {
-		try (ServiceSession serviceSession = serviceProvider.createServiceSession()) {
-			XlmManage manage = serviceSession.getService(XlmManage.class);
-			serviceSession.openTransactions();
-			try {
-				manage.transToColdWallet();
-				serviceSession.commit();
-			} catch (Exception e) {
-				e.printStackTrace();
-				serviceSession.rollback();
 			}
 		} catch (Throwable e) {
 			e.printStackTrace();

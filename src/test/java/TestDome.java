@@ -31,35 +31,45 @@ public class TestDome {
 	public void testTx() throws IOException {
 		Server server = new Server("https://horizon-testnet.stellar.org");
 
-		KeyPair source = KeyPair.fromSecretSeed("SAZID7YMR6NYF5UEJ64SZVCOLUVTR7TPJUB3YFUU2GXHHCUKNAO3C6P2");
+//		KeyPair source = KeyPair.fromSecretSeed("SAZID7YMR6NYF5UEJ64SZVCOLUVTR7TPJUB3YFUU2GXHHCUKNAO3C6P2");
+		KeyPair source = KeyPair.fromSecretSeed("SCZL7CNIXO5M66MQJISVKOMJFO3RTQDIYEH2HNLF7HHYHKB3LUZKQCKE");
 		KeyPair destination = KeyPair.fromAccountId("GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q723BM2OARMDUYEJ5");
 
 // First, check to make sure that the destination account exists.
 // You could skip this, but if the account does not exist, you will be charged
 // the transaction fee when the transaction fails.
 // It will throw HttpResponseException if account does not exist or there was another error.
-		AccountResponse dest = server.accounts().account(destination);
-		System.out.println("d balance:" + dest.getBalances()[0].getBalance());
+//		AccountResponse dest = server.accounts().account(destination);
+//		System.out.println("d balance:" + dest.getBalances()[0].getBalance());
 // If there was no error, load up-to-date information on your account.
 		AccountResponse sourceAccount = server.accounts().account(source);
 //		System.out.println( sourceAccount.getKeypair().getSecretSeed() );
 		System.out.println(sourceAccount.getKeypair().getAccountId());
+		System.out.println("s balance:" + sourceAccount.getBalances()[0].getBalance());
 
 // Start building the transaction.
 		Transaction transaction = new Transaction.Builder(sourceAccount)
-				.addOperation(new PaymentOperation.Builder(destination, new AssetTypeNative(), "1.0001").build())
+				.addOperation(new PaymentOperation.Builder(destination, new AssetTypeNative(), "10").build())
 				// A memo allows you to add your own metadata to a transaction. It's
 				// optional and does not affect how Stellar treats the transaction.
 				.addMemo(Memo.text("Test Transaction"))
 				.build();
 // Sign the transaction to prove you are actually the person sending it.
 		transaction.sign(source);
+//		transaction.sign(sourceAccount.getKeypair());
 
 // And finally, send it off to Stellar!
 		try {
 			SubmitTransactionResponse response = server.submitTransaction(transaction);
 			System.out.println("is Success:"+response.isSuccess());
 			System.out.println(response.getHash());
+
+			System.out.println(response.getExtras().getResultCodes().getTransactionResultCode());
+			System.out.println(response.getEnvelopeXdr());
+			System.out.println(response.getResultXdr());
+
+			System.out.println(response);
+
 		} catch (Exception e) {
 			System.out.println("Something went wrong!");
 			System.out.println(e.getMessage());
@@ -89,24 +99,9 @@ public class TestDome {
 	}
 
 	@Test
-	public void testD () {
-		BigDecimal bd1 = new BigDecimal(10.00);
-		BigDecimal bd2 = new BigDecimal(0.50);
-
-		System.out.println(bd1.subtract(bd2).toString());
-		System.out.println(bd1.add(bd2.negate()));
-
-		BigDecimal bd3 = new BigDecimal(0.000000101);
-		DecimalFormat df = new DecimalFormat("#.########");
-		System.out.println(df.format(bd1));
-		System.out.println(df.format(bd2));
-		System.out.println(df.format(bd3));
-	}
-
-	@Test
 	public void createAcct() throws IOException {
 		String url = "https://horizon-testnet.stellar.org";
-//		Server server = new Server("https://horizon.stellar.org");
+//		String url = "https://horizon.stellar.org";
 		Server server = new Server(url);
 
 		KeyPair newKey = KeyPair.random();
@@ -137,6 +132,7 @@ public class TestDome {
 
 		AccountResponse account = server.accounts().account(myKey);
 		System.out.println("Balances for account :" + myKey.getAccountId());
+		// 创建测试钱包初始有10000xlm
 		for (AccountResponse.Balance balance : account.getBalances()) {
 			System.out.println(String.format(
 					"Type: %s, Code: %s, Balance: %s",
@@ -144,9 +140,5 @@ public class TestDome {
 					balance.getAssetCode(),
 					balance.getBalance()));
 		}
-		/*
-		SCZANGBA5YHTNYVVV4C3U252E2B6P6F5T3U6MM63WBSBZATAQI3EBTQ4
-		SDYI5OWO4FBQ53LQEJT2G6PFMPH25F5F43FRCJKEDQIHDNQGJB25CA54
-		*/
 	}
 }

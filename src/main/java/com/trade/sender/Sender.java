@@ -8,6 +8,9 @@ import com.quqian.framework.service.achieve.SimpleServiceProvider;
 import com.quqian.framework.service.achieve.SimpleServiceProvider.SimpleServiceSession;
 import com.trade.sender.config.Master;
 import com.trade.sender.config.TradeDefine;
+import com.trade.sender.scheduler.AccountScheduler;
+import com.trade.sender.scheduler.TradeScheduler;
+import com.trade.sender.scheduler.WithdrawScheduler;
 import com.trade.sender.service.achieve.XlmManageImpl.XlmManageFactory;
 
 import java.util.HashSet;
@@ -37,7 +40,13 @@ public class Sender {
 			}
 		}, args);
 
-		Scheduler scheduler = new Scheduler(resourceProvider);
-		scheduler.start();
+		// 用户临时钱包创建
+		new AccountScheduler(resourceProvider).start();
+
+		// 接币处理线程
+		new TradeScheduler(resourceProvider).start();
+
+		// 提币处理线程
+		new WithdrawScheduler(resourceProvider).start();
 	}
 }
