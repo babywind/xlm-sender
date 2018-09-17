@@ -2,6 +2,7 @@ package com.trade.sender.service;
 
 import com.quqian.framework.service.Service;
 import com.trade.sender.entity.TradeInfo;
+import com.trade.sender.entity.WithdrawInfo;
 
 /**
  * @author xy
@@ -32,8 +33,23 @@ public interface XlmManage extends Service {
 	TradeInfo[] getTradeInfos() throws Throwable;
 
 	/**
+	 * 创建用户临时钱包
 	 *
 	 * @throws Exception
 	 */
 	void createAccount () throws Exception;
+
+	/**
+	 * 获取用户提币信息
+	 * @return
+	 * @throws Exception
+	 */
+	WithdrawInfo[] getWithdrawInfos () throws Exception;
+
+	/**
+	 * 用户提币处理
+	 * @param info
+	 * @throws Exception
+	 */
+	void withdraw(WithdrawInfo info) throws Exception;
 }
