@@ -10,6 +10,16 @@ public class WalletEntity implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
+	 * id
+	 */
+	public long id;
+
+	/**
+	 * 币ID
+	 */
+	public int bid;
+
+	/**
 	 * 热钱包地址
 	 */
 	public String hwAddress;
