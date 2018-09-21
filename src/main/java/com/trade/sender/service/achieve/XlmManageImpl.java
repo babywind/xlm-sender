@@ -15,6 +15,7 @@ import com.trade.sender.entity.WithdrawInfo;
 import com.trade.sender.service.AbstractManageService;
 import com.trade.sender.service.XlmManage;
 import org.stellar.sdk.*;
+import org.stellar.sdk.requests.ErrorResponse;
 import org.stellar.sdk.responses.AccountResponse;
 import org.stellar.sdk.responses.SubmitTransactionResponse;
 
@@ -123,9 +124,20 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 			String amount = XLM_FORMAT.format(canTransBalance);
 
 			// 构建转账事务
-			Transaction transaction = new Transaction.Builder(sourceAccount)
-					.addOperation(new PaymentOperation.Builder(dest, new AssetTypeNative(), amount).build())
-					.build();
+            Transaction transaction;
+			try {
+			    // 校验用户临时钱包在网络是否存在
+                xlmServer.accounts().account(dest);
+
+                transaction = new Transaction.Builder(sourceAccount)
+                        .addOperation(new PaymentOperation.Builder(dest, new AssetTypeNative(), amount).build())
+                        .build();
+            } catch (ErrorResponse e) {
+			    // 用户临时钱包在网络不存在时，发起创建交易
+                transaction = new Transaction.Builder(sourceAccount)
+                        .addOperation(new CreateAccountOperation.Builder(dest, amount).build())
+                        .build();
+            }
 			// 事务签名
 			transaction.sign(source);
 			// 提交事务
@@ -226,14 +238,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 				String address = newKey.getAccountId();
 				String privateKey = String.valueOf(newKey.getSecretSeed());
 
-				// 注册地址
-				String fbUrl = String.format(url + "/friendbot?addr=%s", address);
-
-				// 注册钱包信息
-				InputStream response = new URL(fbUrl).openStream();
-				new Scanner(response, "UTF-8").useDelimiter("\\A").next();
-
-				// 登记入表
+				// 记入XLM临时钱包表
 				execute(getConnection(P2PConst.DB_USER),
 						"INSERT INTO T6012_" + BJC + " (F03,F04,F05,F06) VALUES (?, ?, 'F', CURRENT_TIMESTAMP())",
 						address, MyCrypt.myEncode(privateKey)

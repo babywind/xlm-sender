@@ -23,8 +23,8 @@ import java.util.Scanner;
 public class TestDome {
 	@Before
 	public void testBefore() {
-//		Network.useTestNetwork();
-		Network.usePublicNetwork();
+		Network.useTestNetwork();
+//		Network.usePublicNetwork();
 	}
 
 	@Test
@@ -33,19 +33,20 @@ public class TestDome {
 
 //		KeyPair source = KeyPair.fromSecretSeed("SAZID7YMR6NYF5UEJ64SZVCOLUVTR7TPJUB3YFUU2GXHHCUKNAO3C6P2");
 		KeyPair source = KeyPair.fromSecretSeed("SCZL7CNIXO5M66MQJISVKOMJFO3RTQDIYEH2HNLF7HHYHKB3LUZKQCKE");
-		KeyPair destination = KeyPair.fromAccountId("GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q723BM2OARMDUYEJ5");
+//		KeyPair destination = KeyPair.fromAccountId("GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q723BM2OARMDUYEJ5");
+//		KeyPair destination = KeyPair.fromSecretSeed("SAZID7YMR6NYF5UEJ64SZVCOLUVTR7TPJUB3YFUU2GXHHCUKNAO3C6P2");
+		KeyPair destination = KeyPair.random();
 
 // First, check to make sure that the destination account exists.
-// You could skip this, but if the account does not exist, you will be charged
-// the transaction fee when the transaction fails.
+// You could skip this, but if the account does not exist, you will be charged the transaction fee when the transaction fails.
 // It will throw HttpResponseException if account does not exist or there was another error.
-//		AccountResponse dest = server.accounts().account(destination);
-//		System.out.println("d balance:" + dest.getBalances()[0].getBalance());
+		AccountResponse dest = server.accounts().account(destination);
+		System.out.println("d balance:" + dest.getBalances()[0].getBalance());
 // If there was no error, load up-to-date information on your account.
 		AccountResponse sourceAccount = server.accounts().account(source);
 //		System.out.println( sourceAccount.getKeypair().getSecretSeed() );
-		System.out.println(sourceAccount.getKeypair().getAccountId());
-		System.out.println("s balance:" + sourceAccount.getBalances()[0].getBalance());
+		System.out.println("sour address:" + sourceAccount.getKeypair().getAccountId());
+		System.out.println("sour balance:" + sourceAccount.getBalances()[0].getBalance());
 
 // Start building the transaction.
 		Transaction transaction = new Transaction.Builder(sourceAccount)
@@ -62,14 +63,16 @@ public class TestDome {
 		try {
 			SubmitTransactionResponse response = server.submitTransaction(transaction);
 			System.out.println("is Success:"+response.isSuccess());
-			System.out.println(response.getHash());
+			if ( response.isSuccess() ) {
+                System.out.println(response.getHash());
 
-			System.out.println(response.getExtras().getResultCodes().getTransactionResultCode());
-			System.out.println(response.getEnvelopeXdr());
-			System.out.println(response.getResultXdr());
+                AccountResponse destAccount = server.accounts().account(destination);
+                System.out.println("desc address:" + destAccount.getKeypair().getAccountId());
+                System.out.println("desc balance:" + destAccount.getBalances()[0].getBalance());
 
-			System.out.println(response);
-
+            } else {
+                System.out.println(response.getExtras().getResultCodes().getTransactionResultCode());
+            }
 		} catch (Exception e) {
 			System.out.println("Something went wrong!");
 			System.out.println(e.getMessage());
@@ -77,6 +80,8 @@ public class TestDome {
 			// already built transaction:
 			// SubmitTransactionResponse response = server.submitTransaction(transaction);
 		}
+
+
 	}
 
 	@Test
@@ -101,7 +106,7 @@ public class TestDome {
 	@Test
 	public void createAcct() throws IOException {
 		String url = "https://horizon-testnet.stellar.org";
-//		String url = "https://horizon.stellar.org";
+//		String url = "http://localhost:8000";
 		Server server = new Server(url);
 
 		KeyPair newKey = KeyPair.random();
@@ -141,4 +146,35 @@ public class TestDome {
 					balance.getBalance()));
 		}
 	}
+
+	@Test
+    public void createNewAccount () throws IOException {
+        Server server = new Server("https://horizon-testnet.stellar.org");
+
+        KeyPair source = KeyPair.fromSecretSeed("SCZL7CNIXO5M66MQJISVKOMJFO3RTQDIYEH2HNLF7HHYHKB3LUZKQCKE");
+        KeyPair destination = KeyPair.random();
+
+        AccountResponse sourceAccount = server.accounts().account(source);
+        System.out.println("sour address:" + sourceAccount.getKeypair().getAccountId());
+        System.out.println("sour balance:" + sourceAccount.getBalances()[0].getBalance());
+
+        Transaction transaction = new Transaction.Builder(sourceAccount)
+                .addOperation(new CreateAccountOperation.Builder(destination, "10").build())
+                .addMemo(Memo.text("Create new account."))
+                .build();
+        transaction.sign(source);
+
+        SubmitTransactionResponse response = server.submitTransaction(transaction);
+        System.out.println("is Success:"+response.isSuccess());
+        if ( response.isSuccess() ) {
+            System.out.println(response.getHash());
+
+            AccountResponse destAccount = server.accounts().account(destination);
+            System.out.println("desc address:" + destAccount.getKeypair().getAccountId());
+            System.out.println("desc balance:" + destAccount.getBalances()[0].getBalance());
+
+        } else {
+            System.out.println(response.getExtras().getResultCodes().getTransactionResultCode());
+        }
+    }
 }
