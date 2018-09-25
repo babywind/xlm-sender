@@ -113,8 +113,10 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 			AccountResponse sourceAccount = xlmServer.accounts().account(source);
 			// 用户钱包余额
 			BigDecimal balance = getXlmBalance(sourceAccount);
+			// 用户可用余额
+			BigDecimal canUseBalance = balance.subtract(MIN_BALANCE);
 			// 可转入余额 = 用户余额 - 手续费 - 账户最小余额
-			BigDecimal canTransBalance = balance.subtract(CHANGE_FEE).subtract(MIN_BALANCE);
+			BigDecimal canTransBalance = canUseBalance.subtract(CHANGE_FEE);
 
 			if (canTransBalance.compareTo(BigDecimal.ZERO) <= 0) {
 				throw new Exception("账户余额不足！");
@@ -146,7 +148,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 				hash = transactionResponse.getHash();
 				result = transactionResponse.getResultXdr();
 
-				transAmount = canTransBalance;
+				transAmount = canUseBalance;
 			} else {
 				result = "转入热钱包失败：" + transactionResponse.getExtras().getResultCodes().getTransactionResultCode();
 			}
