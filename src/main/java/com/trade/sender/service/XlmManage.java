@@ -12,25 +12,25 @@ public interface XlmManage extends Service {
 	/**
 	 * XLM转入热钱包
 	 *
-	 * @param l 用户转账记录
-	 * @throws Throwable
+	 * @param tradeInfo 用户余额同步记录
+	 * @throws Exception
 	 */
-	void transToHotWallet(TradeInfo l) throws Throwable;
+	void transToHotWallet(TradeInfo tradeInfo) throws Exception;
 
 	/**
 	 * XLM转入冷钱包
 	 *
-	 * @throws Throwable
+	 * @throws Exception
 	 */
-	void transToColdWallet() throws Throwable;
+	void transToColdWallet() throws Exception;
 
 	/**
-	 * 获取XLM转账记录
+	 * 获取XLM余额同步记录
 	 *
-	 * @return TradeInfo[]
-	 * @throws Throwable
+	 * @return TradeInfo[] 余额同步申请记录
+	 * @throws Exception
 	 */
-	TradeInfo[] getTradeInfos() throws Throwable;
+	TradeInfo[] getTradeInfos() throws Exception;
 
 	/**
 	 * 创建用户临时钱包
@@ -41,14 +41,14 @@ public interface XlmManage extends Service {
 
 	/**
 	 * 获取用户提币信息
-	 * @return
+	 * @return 提币信息
 	 * @throws Exception
 	 */
 	WithdrawInfo[] getWithdrawInfos () throws Exception;
 
 	/**
 	 * 用户提币处理
-	 * @param info
+	 * @param info 提币信息
 	 * @throws Exception
 	 */
 	void withdraw(WithdrawInfo info) throws Exception;

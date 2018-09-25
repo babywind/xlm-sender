@@ -1,11 +1,15 @@
 package com.trade.sender.service.achieve;
 
+import com.quqian.framework.config.ConfigureProvider;
 import com.quqian.framework.service.ServiceFactory;
 import com.quqian.framework.service.ServiceResource;
 import com.quqian.p2p.common.enums.IsPass;
+import com.quqian.p2p.common.enums.PtXlbType;
 import com.quqian.p2p.common.enums.XlbType;
 import com.quqian.p2p.variables.P2PConst;
+import com.quqian.p2p.variables.defines.SystemVariable;
 import com.quqian.util.MyCrypt;
+import com.quqian.util.SendMsgs;
 import com.quqian.util.StringHelper;
 import com.quqian.util.parser.BigDecimalParser;
 import com.quqian.util.parser.EnumParser;
@@ -83,7 +87,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 		}
 	}
 
-	private WalletEntity getWalletInfo() throws Throwable {
+	private WalletEntity getWalletInfo() throws Exception {
 		return select(getConnection(P2PConst.DB_USER), (re) -> {
 			WalletEntity b = new WalletEntity();
 			while (re.next()) {
@@ -99,7 +103,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 	}
 
 	@Override
-	public void transToHotWallet(TradeInfo trade) throws Throwable {
+	public void transToHotWallet(TradeInfo trade) throws Exception {
 		String hash = "";
 		String result = "";
 		BigDecimal transAmount = BigDecimal.ZERO;
@@ -150,10 +154,12 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 
 				transAmount = canUseBalance;
 			} else {
-				result = "转入热钱包失败：" + transactionResponse.getExtras().getResultCodes().getTransactionResultCode();
+			    throw new Exception(transactionResponse.getExtras().getResultCodes().getTransactionResultCode());
 			}
 		} catch (Exception e) {
 			result = "转入热钱包错误：" + e.getMessage();
+
+            sendErrorMsg("临时钱包转热钱包失败！转出地址=" + trade.address + "；转入用户ID=" + trade.userId,BJC + "转账失败");
 		}
 
 		execute(getConnection(P2PConst.DB_USER), "UPDATE  T6012_3 SET F05=?,F06=CURRENT_TIMESTAMP(),F08=?,F09=? WHERE F01=?", IsPass.S, hash, 0, trade.id);
@@ -168,7 +174,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 	}
 
 	@Override
-	public void transToColdWallet() throws Throwable {
+	public void transToColdWallet() throws Exception {
 		WalletEntity wallet = getWalletInfo();
 		if (IsPass.S == wallet.is && !StringHelper.isEmpty(wallet.cwAddress)) {
 			KeyPair hotKP = KeyPair.fromSecretSeed(MyCrypt.myDecode(wallet.hwPrivateKey));
@@ -197,14 +203,16 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 				// 提交事务
 				SubmitTransactionResponse transactionResponse = xlmServer.submitTransaction(transaction);
 				if (!transactionResponse.isSuccess()) {
-					throw new Exception("转入冷钱包错误：" + transactionResponse.getExtras().getResultCodes().getTransactionResultCode());
+				    sendErrorMsg("热钱包转入冷钱包错误：" + transactionResponse.getExtras().getResultCodes().getTransactionResultCode(), BJC + "转冷钱包失败");
+
+					throw new Exception("热钱包转入冷钱包错误：" + transactionResponse.getExtras().getResultCodes().getTransactionResultCode());
 				}
 			}
 		}
 	}
 
 	@Override
-	public TradeInfo[] getTradeInfos() throws Throwable {
+	public TradeInfo[] getTradeInfos() throws Exception {
 		return selectAll(getConnection(P2PConst.DB_USER),
 				(re) -> {
 					ArrayList<TradeInfo> list = new ArrayList<>();
@@ -316,6 +324,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 			if (response.isSuccess()) {
 				hash = response.getHash();
 				state = "ZCCG";
+
 				transAmount = info.amount;
 			} else {
 				hash = "提币失败：" + response.getExtras().getResultCodes().getTransactionResultCode();
@@ -399,7 +408,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 				"SELECT F04 + F05 FROM T6025 WHERE F02 = ? AND F03 = ? FOR UPDATE ", userId, bid
 		);
 
-		String tradeTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+//		String tradeTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
 
 		if (transTag == TRADE.TRANS_IN) {
 			// 更新用户资产
@@ -420,8 +429,9 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 					userId, bid, amount, amount, "", "", IsPass.S, ""
 			);
 
-			String content = String.format("尊敬的用户，您于%s转入%s枚%s，感谢您的使用。", tradeTime, XLM_FORMAT.format(amount), BJC);
-			sms(userId, "转入ONT成功", content);
+//			String content = String.format("尊敬的用户，您于%s转入%s枚%s，感谢您的使用。", tradeTime, XLM_FORMAT.format(amount), BJC);
+//			sms(userId, "转入ONT成功", content);
+
 		} else {
 			// 更新用户资产
 			execute(getConnection(P2PConst.DB_USER),
@@ -437,30 +447,89 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
 
 			// 用户虚拟币交易记(提币手续费)
 			if (charge.compareTo(BigDecimal.ZERO) > 0) {
-				execute(getConnection(P2PConst.DB_USER),
+                int T6026_F01 = insert(getConnection(P2PConst.DB_USER),
 						"INSERT INTO T6026 SET F02=?, F03=?, F04=?, F05=CURRENT_TIMESTAMP(), F06=?, F08=?, F09=?, F10=? ",
 						userId, bid, XlbType.TBSXF, charge, "", userBalance, userBalance.subtract(charge)
 				);
+
+				// 更新平台资产
+                execute(getConnection(P2PConst.DB_CONSOLE),
+                        "INSERT INTO T7015 SET F01=?,F02=?,F03=? ON DUPLICATE KEY UPDATE F02=F02+?,F03=F03+?",
+                        bid, charge, charge, charge, charge
+                );
+
+                execute(getConnection(P2PConst.DB_CONSOLE),
+                        "INSERT INTO T7016 SET F02=?,F03=?,F04=CURRENT_TIMESTAMP(),F05=?,F07=(SELECT F02 + ? FROM T7015 WHERE F01=?),F08=?,F09=?,F10=?",
+                        bid, PtXlbType.TBSXF, charge, charge, bid, T6026_F01, "", userId
+                );
 			}
 
-			String content = String.format("尊敬的用户，您于%s转出%s枚%s，感谢您的使用。", tradeTime, XLM_FORMAT.format(amount), BJC);
-			sms(userId, "提币成功", content);
+//			String content = String.format("尊敬的用户，您于%s转出%s枚%s，感谢您的使用。", tradeTime, XLM_FORMAT.format(amount), BJC);
+//			sms(userId, "提币成功", content);
 		}
 
+		// 为用户发送站内信息
+        sms(userId, amount, BJC, transTag);
 	}
 
 	/**
-	 * 站内消息发送
+	 * 添加站内信息
 	 *
-	 * @param userId    用户
-	 * @param title     消息标题
-	 * @param content   消息内容
+     * @param userId    用户
+     * @param amount    金额
+     * @param mc        币简称
+     * @param tradeTag  TRANS_IN：转入平台(充值) TRANS_OUT：转出平台(提现)
 	 * @throws Exception
 	 */
-	private void sms(long userId, String title, String content) throws Exception {
-		execute(getConnection(P2PConst.DB_USER),
-				"INSERT INTO T6100 SET F02=?,F03=?,F04=?,F05=?,F06=CURRENT_TIMESTAMP()",
-				userId, title, content, "WD");
+	private void sms(long userId, BigDecimal amount, String mc, TRADE tradeTag) throws Exception {
+		if (userId > 0) {
+			ConfigureProvider configureProvider = serviceResource.getResource(ConfigureProvider.class);
+			SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");// 设置日期格式
+			String iphone = selectString(P2PConst.DB_USER, "SELECT F02 FROM T6010 WHERE F01=?", userId);// 发送短信
+
+			if (TRADE.TRANS_IN == tradeTag) {
+				String sFormat = configureProvider.getProperty(SystemVariable.SMS_ZR);
+				String sAmount = XLM_FORMAT.format(amount);
+				String content = String.format(sFormat, StringHelper.truncation(iphone), df.format(new Date()),
+						configureProvider.getProperty(SystemVariable.SITE_NAME_EN), sAmount, mc);
+				execute(getConnection(P2PConst.DB_USER),
+						"INSERT INTO T6100 SET F02=?,F03=?,F04=?,F05=?,F06=CURRENT_TIMESTAMP()",
+						userId, "转入" + mc, content, "WD"
+				);
+
+				System.out.println("发送站内信成功,userid=" + userId + ",转入" + mc + ",数量=" + sAmount);
+			} else {
+				String sFormat = configureProvider.getProperty(SystemVariable.SMS_ZC_JE);
+				String sAmount = XLM_FORMAT.format(amount);
+				String content = String.format(sFormat, StringHelper.truncation(iphone), df.format(new Date()),
+						configureProvider.getProperty(SystemVariable.SITE_NAME_EN), sAmount, mc);
+				execute(getConnection(P2PConst.DB_USER),
+						"INSERT INTO T6100 SET F02=?,F03=?,F04=?,F05=?,F06=CURRENT_TIMESTAMP()",
+						userId, "提币成功", content, "WD"
+				);
+
+				System.out.println("发送站内信成功,userid=" + userId + ",提取" + mc + ",数量=" + sAmount);
+			}
+		}
 	}
+
+    /**
+     * 发送站内警告邮件
+     *
+     * @param errorMsg  错误告警信息
+     * @param title     标题
+     */
+    private void sendErrorMsg(String errorMsg, String title) {
+        ConfigureProvider configureProvider = serviceResource.getResource(ConfigureProvider.class);
+
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");// 设置日期格式
+
+        String mailAddress = configureProvider.getProperty(SystemVariable.BLOCK_EXCEPTION_EMAIL);
+        String s = configureProvider.getProperty(SystemVariable.SITE_NAME_EN)+"异常告警：" + errorMsg;
+
+        String content = String.format(s, df.format(new Date()));
+//        System.out.println((new Date()).toString() + " : " + content);
+        SendMsgs.sendMsg(content, mailAddress, title);
+    }
 
 }
