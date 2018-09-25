@@ -459,7 +459,7 @@ public class XlmManageImpl extends AbstractManageService implements XlmManage {
                 );
 
                 execute(getConnection(P2PConst.DB_CONSOLE),
-                        "INSERT INTO T7016 SET F02=?,F03=?,F04=CURRENT_TIMESTAMP(),F05=?,F07=(SELECT F02 + ? FROM T7015 WHERE F01=?),F08=?,F09=?,F10=?",
+                        "INSERT INTO T7016 SET F02=?,F03=?,F04=CURRENT_TIMESTAMP(),F05=?,F07=(SELECT F02 FROM T7015 WHERE F01=?),F08=?,F09=?,F10=?",
                         bid, PtXlbType.TBSXF, charge, charge, bid, T6026_F01, "", userId
                 );
 			}
